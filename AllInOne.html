@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Quiz Application</title>
+    <link rel="stylesheet" href="style2.css">
+    <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "wjbndtzcna");
+    </script>
+</head>
+<body>
+
+    <div id="app-container">
+        <div id="quiz-view">
+            <div class="top-nav">
+                <button id="btn-submit-nav" class="hidden">Submit ></button>
+                <div class="nav-buttons">
+                    <button id="btn-prev">< Previous</button>
+                    <button id="btn-next">Next ></button>
+                </div>
+            </div>
+
+            <div class="progress-bars" id="progress-container">
+                </div>
+
+            <div class="image-container">
+                <img id="monkey-image" src="Question.jpg" alt="Monkey Status">
+            </div>
+
+            <div class="question-number-wrapper">
+                <div class="diamond">
+                    <span id="question-number">1</span>
+                </div>
+            </div>
+
+            <div class="question-box" id="question-text">
+                </div>
+
+            <div class="options-grid" id="options-container">
+                </div>
+        </div>
+
+        <div id="score-view" class="hidden">
+            <div class="top-nav">
+                <button id="btn-restart-score">< Restart</button>
+                <div class="nav-buttons">
+                    <button id="btn-exit">Exit ></button>
+                </div>
+            </div>
+            <h1>Your Final score is</h1>
+            <div class="score-circle">
+                <span id="final-score-text">0/5</span>
+            </div>
+        </div>
+
+        <div id="exit-view" class="hidden">
+            <div class="top-nav">
+                <button id="btn-restart-exit">< Restart</button>
+            </div>
+            <div class="taped-image">
+                <div class="tape tape-top-left"></div>
+                <img id="exit-image" src="Rectangle 3.jpg" alt="Exit Character">
+                <div class="tape tape-bottom-right"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- CONFIGURATION & DATA --- */
+        // Ensure these image files are in the same folder as this HTML file
+        const IMAGES = {
+            confusedMonkey: "Question.jpg", 
+            happyMonkey: "Correct.jpg"
+        };
+
+        const quizData = [
+            {
+                question: "Which of the following is generally considered a strong rule of thumb when pairing fonts for a user interface?",
+                options: [
+                    "Using two highly decorative script fonts for contrast.",
+                    "Pairing a distinct sans-serif header with a readable serif body text.",
+                    "Utilizing at least four different fonts to establish a clear visual hierarchy.",
+                    "Artificially stretching a single font's width to fit different containers."
+                ],
+                correctIndex: 1
+            },
+            {
+                question: "Director James Gunn is widely recognized for his distinct style and for successfully directing major ensemble films for which two rival comic book studios?",
+                options: [
+                    "Marvel (X-Men) and DC (Teen Titans)",
+                    "Sony (Spider-Verse) and DC (Batman)",
+                    "Marvel (Guardians of the Galaxy) and DC (The Suicide Squad)",
+                    "Fox (Fantastic Four) and DC (Justice League)"
+                ],
+                correctIndex: 2
+            },
+            {
+                question: "The Swaraj Flag, officially adopted by the Indian National Congress in 1931 and featuring a spinning wheel (charkha) in the center, was made up of which three colors?",
+                options: [
+                    "Saffron, White, and Green",
+                    "Red, White, and Green",
+                    "Saffron, White, and Navy Blue",
+                    "Orange, Yellow, and Green"
+                ],
+                correctIndex: 0
+            },
+            {
+                question: "When building visual transitions or animations using the p5.js library, which core function is designed to continuously execute lines of code frame-by-frame?",
+                options: [
+                    "setup()",
+                    "render()",
+                    "animate()",
+                    "draw()"
+                ],
+                correctIndex: 3
+            },
+            {
+                question: "In sneaker collecting and resale terminology, what does the acronym \"DS\" stand for when describing the condition of a pair of shoes?",
+                options: [
+                    "Daily Steal",
+                    "Deadstock",
+                    "Drop Ship",
+                    "Dual Stitch"
+                ],
+                correctIndex: 1
+            }
+        ];
+
+        /* --- STATE VARIABLES --- */
+        let currentIndex = 0;
+        let userAnswers = new Array(quizData.length).fill(null);
+
+        /* --- DOM ELEMENTS --- */
+        const views = {
+            quiz: document.getElementById('quiz-view'),
+            score: document.getElementById('score-view'),
+            exit: document.getElementById('exit-view')
+        };
+
+        const elQuestionText = document.getElementById('question-text');
+        const elOptionsContainer = document.getElementById('options-container');
+        const elQuestionNumber = document.getElementById('question-number');
+        const elMonkeyImage = document.getElementById('monkey-image');
+        const elProgressContainer = document.getElementById('progress-container');
+        
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const btnSubmitNav = document.getElementById('btn-submit-nav');
+        const elFinalScoreText = document.getElementById('final-score-text');
+
+        /* --- INITIALIZATION --- */
+        function init() {
+            // Create progress bar segments based on total questions
+            elProgressContainer.innerHTML = '';
+            for (let i = 0; i < quizData.length; i++) {
+                const segment = document.createElement('div');
+                segment.className = 'progress-segment';
+                elProgressContainer.appendChild(segment);
+            }
+
+            // Bind Event Listeners
+            btnPrev.addEventListener('click', goPrevious);
+            btnNext.addEventListener('click', goNext);
+            btnSubmitNav.addEventListener('click', showScore);
+            document.getElementById('btn-restart-score').addEventListener('click', restartQuiz);
+            document.getElementById('btn-restart-exit').addEventListener('click', restartQuiz);
+            document.getElementById('btn-exit').addEventListener('click', showExit);
+
+            loadQuestion();
+        }
+
+        /* --- CORE LOGIC --- */
+        function loadQuestion() {
+            const currentQ = quizData[currentIndex];
+            elQuestionNumber.innerText = currentIndex + 1;
+            elQuestionText.innerText = currentQ.question;
+            
+            // Render Options Grid
+            elOptionsContainer.innerHTML = '';
+            currentQ.options.forEach((optText, index) => {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'option';
+                
+                // Retain selection if user navigates back
+                if (userAnswers[currentIndex] === index) {
+                    optDiv.classList.add('selected');
+                }
+
+                optDiv.innerHTML = `
+                    <div class="radio-circle"></div>
+                    <span>${optText}</span>
+                `;
+                optDiv.addEventListener('click', () => selectOption(index));
+                elOptionsContainer.appendChild(optDiv);
+            });
+
+            updateUI();
+        }
+
+        function selectOption(selectedIndex) {
+            userAnswers[currentIndex] = selectedIndex;
+            
+            // Update visual selection
+            const options = elOptionsContainer.children;
+            for (let i = 0; i < options.length; i++) {
+                options[i].classList.remove('selected');
+            }
+            options[selectedIndex].classList.add('selected');
+
+            updateMonkeyImage();
+        }
+
+        function updateUI() {
+            updateNavigation();
+            updateProgressBars();
+            updateMonkeyImage();
+        }
+
+        function updateMonkeyImage() {
+            const answerSelected = userAnswers[currentIndex];
+            const correctIndex = quizData[currentIndex].correctIndex;
+
+            // Determine if monkey is happy or confused
+            if (answerSelected !== null && answerSelected === correctIndex) {
+                elMonkeyImage.src = IMAGES.happyMonkey; // Correct
+            } else {
+                elMonkeyImage.src = IMAGES.confusedMonkey; // Wrong or Default
+            }
+        }
+
+        function updateNavigation() {
+            // Handle Previous button state
+            btnPrev.disabled = (currentIndex === 0);
+
+            // Handle Next/Submit button states
+            if (currentIndex === quizData.length - 1) {
+                btnNext.disabled = true;
+                btnSubmitNav.classList.remove('hidden'); // Show Submit
+            } else {
+                btnNext.disabled = false;
+                btnSubmitNav.classList.add('hidden'); // Hide Submit
+            }
+        }
+
+        function updateProgressBars() {
+            const segments = elProgressContainer.children;
+            for (let i = 0; i < segments.length; i++) {
+                if (i <= currentIndex) {
+                    segments[i].classList.add('active');
+                } else {
+                    segments[i].classList.remove('active');
+                }
+            }
+        }
+
+        /* --- NAVIGATION FUNCTIONS --- */
+        function goPrevious() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                loadQuestion();
+            }
+        }
+
+        function goNext() {
+            if (currentIndex < quizData.length - 1) {
+                currentIndex++;
+                loadQuestion();
+            }
+        }
+
+        function calculateScore() {
+            let score = 0;
+            for (let i = 0; i < quizData.length; i++) {
+                if (userAnswers[i] === quizData[i].correctIndex) {
+                    score++;
+                }
+            }
+            return score;
+        }
+
+        /* --- VIEW CONTROLLERS --- */
+        function switchView(viewName) {
+            Object.values(views).forEach(view => view.classList.add('hidden'));
+            views[viewName].classList.remove('hidden');
+        }
+
+        function showScore() {
+            const score = calculateScore();
+            elFinalScoreText.innerText = `${score}/${quizData.length}`;
+            switchView('score');
+        }
+
+        function showExit() {
+            switchView('exit');
+        }
+
+        function restartQuiz() {
+            currentIndex = 0;
+            userAnswers.fill(null);
+            switchView('quiz');
+            loadQuestion();
+        }
+
+        // Initialize the Application on load
+        init();
+
+    </script>
+</body>
+</html>
